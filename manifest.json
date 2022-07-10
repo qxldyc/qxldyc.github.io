@@ -1,0 +1,18 @@
+{
+    "scope": "/",
+    "name": "气象雷达预测",
+    "short_name": "气象雷达预测",
+    "start_url": "/",
+    "display": "standalone",
+    "description": "气象雷达预测",
+    "dir": "ltr",
+    "lang": "cn",
+    "orientation": "portrait",
+    "theme_color": "#70B7FD",
+    "background_color": "#fff",
+    "icons": [{
+        "src": "/tb.png",
+        "sizes": "144x144",
+        "type": "image/png"
+    }]
+}

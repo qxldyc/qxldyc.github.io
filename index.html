@@ -1,0 +1,220 @@
+<html>
+
+<head>
+	<title>气象雷达预测</title>
+	<link href="static/vuetify.min.css" rel="stylesheet">
+	<script src="static/vue.js"></script>
+	<script src="static/vuetify.js"></script>
+	<link rel="stylesheet" type="text/css" href="static/ol.css">
+	<style>
+		html {
+			overflow: hidden;
+		}
+
+		.云图 {
+			transition: filter 1s, opacity 1s
+		}
+
+		.v-input {
+			background: white;
+			margin: 0;
+			padding: 5px;
+		}
+
+		.v-input__control div {
+			margin: 0;
+		}
+
+		.v-text-field__details {
+			display: none;
+		}
+
+		.v-input,
+		.v-application--wrap,
+		.v-application,
+		v-application--wrap {
+			display: block;
+			flex: unset;
+			min-height: unset;
+		}
+	</style>
+	<script type="text/javascript" src="static/ol.js" charset="utf-8"></script>
+</head>
+
+<body style="margin: 0;">
+	<div id="mapdBZ"
+		style="position: absolute; z-index: 2; right: 2%; bottom: 10%;width: 79px;box-shadow: black 0 0 10px;">
+		<img src="static/dBZ.png">
+	</div>
+
+	<div id="map" tabindex="1" autofocus="autofocus" style="width:100%;"></div>
+	<div id="app" style="z-index: 999;position: absolute;top: 0;width: 100%;">
+		<v-app style="background: none;">
+			<v-select :items="items" v-model="显示地图"></v-select>
+		</v-app>
+	</div>
+	<script type="text/javascript">
+		resize_map_blur = () => {
+			if (!container)
+				container = 云图.getRenderer().container
+			let blur = hover ? 0 : 1000 / view.getResolution()
+			container.style.filter = "blur(" + blur + "px)"
+		}
+		document.onmousewheel = resize_map_blur
+		initMap = () => {
+			var center = ol.proj.transform([121.64826, 29.79279], 'EPSG:4326', 'EPSG:3857');
+			var map = new ol.Map({
+				interactions: ol.interaction.defaults({
+					doubleClickZoom: false,
+					// mouseWheelZoom: false,
+					// shiftDragZoom: false,
+					// pinchZoom:false,
+					altShiftDragRotate: false,
+					pinchRotate: false
+				}),
+				controls: ol.control.defaults({
+					attribution: false,
+					rotate: false,
+					zoom: false
+				}),
+				view: new ol.View({
+					center: center,
+					zoom: 11.5,
+					// zoomFactor: Math.pow(2, 1 / zoomFactorSize),
+					minZoom: 6,
+					maxZoom: 17,
+					// zoomFactor:2.8
+				}),
+				target: 'map',
+			});
+			map.addLayer(new ol.layer.Tile({
+				source: new ol.source.XYZ({
+					url: 'http://t4.tianditu.com/DataServer?T=img_w&tk=bc8607a5baffec68112b0923e618d1a0&x={x}&y={y}&l={z}'
+				}),
+			}));
+			map.addLayer(new ol.layer.Tile({
+				source: new ol.source.XYZ({
+					url: 'http://t4.tianditu.com/DataServer?T=cia_w&tk=bc8607a5baffec68112b0923e618d1a0&x={x}&y={y}&l={z}'
+				}),
+				zIndex: 1
+				// options:{tilePixelRatio:2}
+			}))
+			//https://t0.tianditu.gov.cn/ibo_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ibo&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL=109&TILEROW=51&TILEMATRIX=7&tk=0b79a07d2808103ab84aa56485c331a8
+
+			//  http://www.qx121.com/data.ashx?method=getMapDrawList&topn=1&type=lonlat/href&callback=getMap
+
+			FileName = ""
+			getMap = (result) => {
+				if (FileName != result.Result[0].FileName) {
+					FileName = result.Result[0].FileName
+					//({"Result":[{"FileName":"MOSAICHREF000.20220624.075000.latlon","GroupKey":"XML","IsNow":false,"Title":"24日15时50分雷达图"}],"Status":1})
+					console.table(result.Result)
+					window.result = result.Result
+					app.显示地图 = result.Result[0].Title
+					app.items = window.result.map(i => (i.Title))
+				}
+
+			}
+			云图 = new ol.layer.Tile({
+				// source: new ol.source.XYZ({
+				// 	url: `http://www.qx121.com/GetTiledImage.ashx?Type=lonlat&File=${result.Result[0].FileName}&x={x}&y={y}&z={z}`
+				// }),
+				// opacity: 0.8,
+				className: '云图'
+			});
+			// 云图.setOpacity(0.30);
+			map.addLayer(云图);
+			view = map.getView()
+			container = null
+			获取云图 = () => {
+				let script = document.createElement("script")
+				script.src = "http://www.qx121.com/data.ashx?method=getMapDrawList&topn=18&type=lonlat/href&callback=getMap"
+				document.body.appendChild(script)
+			}
+			获取云图()
+			setInterval(获取云图, 1000 * 60);
+			var layer = new ol.layer.Vector({
+				source: new ol.source.Vector()
+			})
+			map.addLayer(layer);
+		}
+
+		let mapdBZ = document.querySelector("#mapdBZ")
+		hover = false
+		mapdBZ.onmouseout = () => {
+			hover = false
+			container.style.opacity = "0.7"
+			resize_map_blur()
+		}
+		mapdBZ.onmouseenter = () => {
+			hover = true
+			container.style.opacity = "0.35"
+			resize_map_blur()
+		}
+
+		app = new Vue({
+			el: '#app',
+			vuetify: new Vuetify(),
+			data: () => ({
+				items: [],
+				显示地图: ""
+			}),
+			watch: {
+				显示地图: {
+					handler: function () {
+
+						云图.setSource(new ol.source.XYZ({
+							url: `http://www.qx121.com/GetTiledImage.ashx?Type=lonlat&File=${result.find(i => (app.显示地图 == i.Title)).FileName}&x={x}&y={y}&z={z}`
+						}))
+						document.title = app.显示地图
+					}
+				}
+			},
+			mounted: initMap
+		})
+		// map.on('singleclick', function (event) {
+		// 	console.log(event)
+		// 	var feature = map.forEachFeatureAtPixel(event.pixel,
+		// 		function (feature) {
+		// 			return feature;
+		// 		});
+		// 	if (feature) {
+		// 		alert(feature.备注)
+		// 		return
+		// 	}
+		// 	anchor = new ol.Feature({
+		// 		geometry: new ol.geom.Point(event.c.K)
+		// 	});
+		// 	anchor.setStyle(new ol.style.Style({
+		// 		image: new ol.style.Circle({
+		// 			radius: 3,
+		// 			stroke: new ol.style.Stroke({
+		// 				color: '#000'
+		// 			}),
+		// 			fill: new ol.style.Fill({
+		// 				color: '#f00'
+		// 			})
+		// 		}),
+		// 		text: new ol.style.Text({
+		// 			font: '20px sans-serif',
+		// 			offsetY: 18,
+		// 			text: prompt("名称"),//ol.proj.transform(map.getEventCoordinate(event), 'EPSG:3857', 'EPSG:4326')
+		// 			fill: new ol.style.Fill({
+		// 				color: 'white'
+		// 			}),
+		// 			stroke: new ol.style.Stroke({
+		// 				color: '#000',
+		// 				width: 8
+		// 			}),
+		// 		})
+		// 	}));
+		// 	anchor.备注 = prompt("备注")
+		// 	// anchor.getStyle().getImage().setScale(0.2)
+		// 	layer.getSource().addFeature(anchor);
+		// 	;
+		// })
+
+	</script>
+</body>
+
+</html>
